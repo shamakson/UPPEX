@@ -79,9 +79,63 @@ for idx, particle_index in enumerate(top_particle_indices):
     print(f"Particle {idx+1}: Weight = {average_weights[particle_index]:.4f}")
 
 # Now, copy the selected files with the largest average weights
+selected_files = []
 for idx, particle_index in enumerate(top_particle_indices):
     input_model_file = model_data_paths[particle_index]
     output_file_name = os.path.basename(input_model_file).replace(".nc", f"_selected_{idx + 1}.nc")
     shutil.copy(input_model_file, output_file_name)
     print (f"Input file with largest weight {idx + 1} selected and copied")
 
+##################################################################################################
+##################################################################################################
+# Perturb the selected particles with model error
+##################################################################################################
+##################################################################################################
+mu = 0.0  # Mean of model error perturbation
+sigma = 1.0  # Standard deviation of model error perturbation
+
+# Perturb the selected particles with model error
+mu = 0.0  # Mean of model error perturbation
+sigma = 1.0  # Standard deviation of model error perturbation
+
+# Define the model error value (replace 0.1 with your desired value)
+model_error_value = 0.1  # Adjust this value as needed
+
+# Loop through the selected files and perturb them
+for idx, selected_file in enumerate(selected_files):
+    selected_data_read = Dataset(selected_file)
+    
+    # Get latitude and longitude dimensions
+    latsdim = selected_data_read.dimensions['lat'].size
+    lonsdim = selected_data_read.dimensions['lon'].size
+    
+    # Create a new NetCDF file for the perturbed data
+    perturbed_output_file = f"perturbed_selected_{idx + 1}.nc"
+    perturbed_data = Dataset(perturbed_output_file, 'w', format='NETCDF4')
+    
+    # Create latitude and longitude dimensions
+    latdim = perturbed_data.createDimension('latitude', latsdim)
+    londim = perturbed_data.createDimension('longitude', lonsdim)
+    
+    # Create latitude and longitude variables
+    latitude = perturbed_data.createVariable('latitude', 'f8', ('latitude',))
+    longitude = perturbed_data.createVariable('longitude', 'f8', ('longitude',))
+    
+    # Copy latitude and longitude values from the original file
+    latitude[:] = selected_data_read.variables['lat'][:]
+    longitude[:] = selected_data_read.variables['lon'][:]
+    
+    # Create perturbed variable (assuming 'temp2' is the variable you want to perturb)
+    perturbed_temp2 = perturbed_data.createVariable('temp2', 'f4', ('latitude', 'longitude'))
+    
+    # Apply model error perturbation
+    perturbed_temp2[:, :] = selected_data_read.variables['temp2'][:] + model_error_value
+    
+    # Set attributes if needed
+    perturbed_temp2.long_name = "2m temperature"
+    perturbed_temp2.units = "K"
+    
+    # Close the perturbed NetCDF file
+    perturbed_data.close()
+
+    print(f"Perturbed data saved to {perturbed_output_file}")
